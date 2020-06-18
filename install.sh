@@ -12,8 +12,16 @@ $python -m pip install --upgrade pip setuptools wheel
 # Get and build ta-lib
 function install-ta-lib()
 {
+    if ! command -v wget &> /dev/null && ! command -v curl &> /dev/null;then
+      echo "Please install wget first"
+      exit
+    fi
     pushd /tmp
+    if command -v wget &> /dev/null;then
     wget https://pip.vnpy.com/colletion/ta-lib-0.4.0-src.tar.gz
+    else
+      curl -LOO  https://pip.vnpy.com/colletion/ta-lib-0.4.0-src.tar.gz
+    fi
     tar -xf ta-lib-0.4.0-src.tar.gz
     cd ta-lib
     ./configure --prefix=$prefix
@@ -23,7 +31,7 @@ function install-ta-lib()
 }
 function ta-lib-exists()
 {
-    ta-lib-config --libs > /dev/null
+    ta-lib-config --libs &> /dev/null
 }
 ta-lib-exists || install-ta-lib
 
