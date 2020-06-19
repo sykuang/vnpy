@@ -35,6 +35,8 @@ from vnpy.trader.object import (
     SubscribeRequest,
     OrderRequest,
     CancelRequest,
+    BarData,
+    HistoryRequest
 )
 
 EXCHANGE_VT2SINOPAC = {Exchange.TSE: "TSE", Exchange.TFE: "TFE"}
@@ -153,6 +155,33 @@ class SinopacGateway(BaseGateway):
         # Start fixed interval query.
         self.event_engine.register(EVENT_TIMER, self.process_timer_event)
 
+    def query_history(self, req: HistoryRequest):
+        history = []
+        start_time = req.start
+        end_time = req.end
+        symbol = f"{req.symbol}.{req.exchange.value}"
+        while start_time <= end_time:
+            ticks=self.api.ticks(self.api.Contracts.Stocks[symbol], start_time.strftime("%Y-%m-%d"))
+            buf =[]
+            for i in range(len(ticks['ts'])):
+                bar = BarData(
+                        symbol=req.symbol,
+                        exchange=req.exchange,
+                        datetime=datetime.fromtimestamp(ticks['ts'][i] / 1000000000 - 8 * 60 * 60),
+                        interval=req.interval,
+                        volume=ticks['volume'][i],
+                        # Get correct open_price of first ticks
+                        open_price=ticks['close'][i-1] if i> 0 else ticks['bid_price'],
+                        high_price=ticks['ask_prise'][i],
+                        low_price=ticks['bid_prise'][i],
+                        close_price=ticks['close'][i],
+                        gateway_name=self.gateway_name
+                    )
+                buf.append(bar)
+            if len(buf):
+                history.extend(buf)
+            start_time+=datetime.timedelta(days=1)
+        return history
     def connect(self, setting: dict):
         simulation = True if setting["環境"] == "模擬" else False
         self.write_log(f"使用永豐金證券 {setting['環境']} 平台")
